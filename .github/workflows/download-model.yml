@@ -8,18 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download RealisticVision V6 with forced user-agent
+      - name: Download via CDN direct link
         run: |
-          echo "Starting download..."
-          curl -L \
-            -H "User-Agent: Mozilla/5.0" \
-            --retry 10 \
-            --retry-all-errors \
-            --retry-delay 5 \
-            -o Realistic_Vision_V6.0_B1_noVAE.safetensors \
-            "https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE/resolve/main/Realistic_Vision_V6.0_B1_noVAE.safetensors"
+          echo "Starting direct CDN download..."
+          wget -O Realistic_Vision_V6.0_B1_noVAE.safetensors \
+            "https://cdn-lfs.huggingface.co/repos/SG161222/Realistic_Vision_V6.0_B1_noVAE/7b9c8c91157330398c114a8edbdf389691d8ca3d8a33c31bb4b2f784a665fbf0"
 
-          echo "Download finished"
+          echo "Finished downloading"
           ls -lh
 
       - name: Check file size
