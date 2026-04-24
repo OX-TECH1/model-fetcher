@@ -3,6 +3,9 @@ name: Fetch Model
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -12,20 +15,33 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install aria2
-      run: sudo apt-get install -y aria2
+      run: sudo apt-get update && sudo apt-get install -y aria2
 
     - name: Download model
       run: |
-        aria2c -x 16 -s 16 -k 1M -o model.safetensors "MODEL_URL"
+        aria2c -x 16 -s 16 -k 1M \
+        -o model.safetensors \
+        "MODEL_URL"
+        
+        echo "Downloaded size:"
+        ls -lh model.safetensors
+
+    - name: Verify download
+      run: |
+        if [ ! -s model.safetensors ]; then
+          echo "Download failed or file is empty!"
+          exit 1
+        fi
 
     - name: Split model
       run: |
         split -b 500M model.safetensors model.part-
+        ls -lh model.part-*
 
     - name: Create release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: model-release
+        tag_name: model-release-${{ github.run_number }}
         name: Model Parts
         files: model.part-*
       env:
