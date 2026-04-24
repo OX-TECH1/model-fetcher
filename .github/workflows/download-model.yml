@@ -1,51 +1,26 @@
-name: Rebuild Full Model From Parts
+name: Download Model
 
 on:
   workflow_dispatch:
 
 jobs:
-  rebuild:
+  download:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      - name: Install aria2
+        run: sudo apt-get update && sudo apt-get install -y aria2
 
-      - name: Show repo files
+      - name: Download model
         run: |
-          echo "=== Files in repo ==="
-          ls -lh
+          aria2c -x 16 -s 16 -k 1M -o model.safetensors https://huggingface.co/SG161222/RealVisXL_V3.0/resolve/main/RealVisXL_V3.0.safetensors
 
-      - name: Check ZIP parts exist
+      - name: Split file
         run: |
-          echo "=== Checking for ZIP files ==="
-          count=$(ls part_*.zip 2>/dev/null | wc -l)
-          echo "Found $count ZIP files"
-          if [ "$count" -eq 0 ]; then
-            echo "ERROR: No part_*.zip files found in repo root!"
-            exit 1
-          fi
+          split -b 1900M model.safetensors model.part-
 
-      - name: Unzip & Rebuild
-        run: |
-          echo "=== Starting rebuild ==="
-          mkdir extracted
-
-          for part in $(ls part_*.zip | sort); do
-            echo "Processing $part ..."
-            unzip -p "$part" >> extracted/model.bin || exit 2
-          done
-
-      - name: Rename to final file
-        run: mv extracted/model.bin Realistic_Vision_V6.safetensors
-
-      - name: Final size check
-        run: ls -lh Realistic_Vision_V6.safetensors
-
-      - name: Upload final model
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RealisticVisionV6-Full
-          path: Realistic_Vision_V6.safetensors
+          name: model_parts
+          path: model.part-*
