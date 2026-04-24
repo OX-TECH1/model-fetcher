@@ -10,28 +10,41 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-      - name: List ZIP parts
+      - name: Show repo files
         run: |
-          echo "Available ZIP parts:"
-          ls -lh *.zip
+          echo "=== Files in repo ==="
+          ls -lh
 
-      - name: Unzip All Parts
+      - name: Check ZIP parts exist
         run: |
+          echo "=== Checking for ZIP files ==="
+          count=$(ls part_*.zip 2>/dev/null | wc -l)
+          echo "Found $count ZIP files"
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: No part_*.zip files found in repo root!"
+            exit 1
+          fi
+
+      - name: Unzip & Rebuild
+        run: |
+          echo "=== Starting rebuild ==="
           mkdir extracted
+
           for part in $(ls part_*.zip | sort); do
-            echo "Unzipping $part ..."
-            unzip -p "$part" >> extracted/model_combined.bin
+            echo "Processing $part ..."
+            unzip -p "$part" >> extracted/model.bin || exit 2
           done
 
-      - name: Rename to final safetensors
-        run: |
-          mv extracted/model_combined.bin Realistic_Vision_V6.safetensors
+      - name: Rename to final file
+        run: mv extracted/model.bin Realistic_Vision_V6.safetensors
 
-      - name: Check final model size
+      - name: Final size check
         run: ls -lh Realistic_Vision_V6.safetensors
 
-      - name: Uplo Final Model
+      - name: Upload final model
         uses: actions/upload-artifact@v4
         with:
           name: RealisticVisionV6-Full
