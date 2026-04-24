@@ -1,61 +1,35 @@
-name: Download Split And Release Model
+name: Move Artifact to Release
 
 on:
   workflow_dispatch:
-    inputs:
-      model_url:
-        description: "Direct download URL of model file"
-        required: true
-        type: string
-      model_name:
-        description: "Output model filename"
-        required: true
-        default: "RealVisXL_V4.0.safetensors"
-        type: string
-      part_size:
-        description: "Split size in MB"
-        required: true
-        default: "500"
-        type: string
-
-permissions:
-  contents: write
 
 jobs:
-  build:
+  move_artifact:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install tools
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Artifact ZIP from Azure
         run: |
-          sudo apt-get update
-          sudo apt-get install -y aria2 coreutils
+          curl -L "https://productionresultssa16.blob.core.windows.net/actions-results/0565fcf0-3548-4a8e-aa7f-8fa84903aafc/workflow-job-run-944153a0-83b3-5588-a937-7a707c53df7a/artifacts/c5bb923ab836715605fa88d67682fa9ecf5831ecf41179af239c663c6a8ad128.zip?rscd=attachment%3B+filename%3D%22model_parts.zip%22&rsct=application%2Fzip&se=2026-04-24T19%3A30%3A02Z&sig=gQ1k3YgHdsfUL2IL%2BqGxIbr6GOFRz450oTlu0laKOkE%3D&ske=2026-04-24T22%3A33%3A10Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2026-04-24T18%3A33%3A10Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-11-05&sp=r&spr=https&sr=b&st=2026-04-24T19%3A19%3A57Z&sv=2025-11-05" \
+            -o model_parts.zip
 
-      - name: Download model
+      - name: Verify SHA256
         run: |
-          aria2c \
-            -x 16 -s 16 -k 1M \
-            -o "${{ inputs.model_name }}" \
-            "${{ inputs.model_url }}"
+          echo "b189f35955e66072e861eb08f84f7c770a43a7cff179afc916d9581161e4cf30  model_parts.zip" | sha256sum -c -
 
-      - name: Split model into parts
+      - name: Unzip parts
         run: |
-          mkdir -p parts
-          split -b "${{ inputs.part_size }}M" -d -a 3 "${{ inputs.model_name }}" "parts/${{ inputs.model_name }}.part-"
-          ls -lh parts/
+          mkdir parts
+          unzip model_parts.zip -d parts
 
-      - name: Create release tag
-        id: tag
-        run: echo "tag=model-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-
-      - name: Upload split parts to GitHub Release
+      - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: RealVisXL V4.0 split parts
-          body: |
-            Split model parts uploaded automatically.
-          files: |
-            parts/*
+          tag_name: model-files
+          name: "SDXL Model (Artifact Imported)"
+          files: parts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
