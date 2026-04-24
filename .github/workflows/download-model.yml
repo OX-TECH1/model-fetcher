@@ -3,9 +3,15 @@ name: Move Artifact to Release
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write   # 👈 بسیار مهم!
+
 jobs:
   move_artifact:
     runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
@@ -14,22 +20,21 @@ jobs:
       - name: Download Artifact ZIP from Azure
         run: |
           curl -L "https://productionresultssa16.blob.core.windows.net/actions-results/0565fcf0-3548-4a8e-aa7f-8fa84903aafc/workflow-job-run-944153a0-83b3-5588-a937-7a707c53df7a/artifacts/c5bb923ab836715605fa88d67682fa9ecf5831ecf41179af239c663c6a8ad128.zip?rscd=attachment%3B+filename%3D%22model_parts.zip%22&rsct=application%2Fzip&se=2026-04-24T19%3A30%3A02Z&sig=gQ1k3YgHdsfUL2IL%2BqGxIbr6GOFRz450oTlu0laKOkE%3D&ske=2026-04-24T22%3A33%3A10Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2026-04-24T18%3A33%3A10Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-11-05&sp=r&spr=https&sr=b&st=2026-04-24T19%3A19%3A57Z&sv=2025-11-05" \
-            -o model_parts.zip
+          -o model_parts.zip
 
       - name: Verify SHA256
         run: |
           echo "b189f35955e66072e861eb08f84f7c770a43a7cff179afc916d9581161e4cf30  model_parts.zip" | sha256sum -c -
 
-      - name: Unzip parts
+      - name: Extract files
         run: |
           mkdir parts
           unzip model_parts.zip -d parts
 
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload Assets to Release
+        uses: svenstaro/upload-release-action@v2
         with:
-          tag_name: model-files
-          name: "SDXL Model (Artifact Imported)"
-          files: parts/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: parts/*
+          tag: model-files
+          overwrite: true
