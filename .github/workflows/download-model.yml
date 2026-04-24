@@ -1,48 +1,61 @@
-name: Fetch Model
+name: Download Split And Release Model
 
 on:
   workflow_dispatch:
+    inputs:
+      model_url:
+        description: "Direct download URL of model file"
+        required: true
+        type: string
+      model_name:
+        description: "Output model filename"
+        required: true
+        default: "RealVisXL_V4.0.safetensors"
+        type: string
+      part_size:
+        description: "Split size in MB"
+        required: true
+        default: "500"
+        type: string
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: write
 
 jobs:
-  fetch:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aria2 coreutils
 
-    - name: Install aria2
-      run: sudo apt-get update && sudo apt-get install -y aria2
+      - name: Download model
+        run: |
+          aria2c \
+            -x 16 -s 16 -k 1M \
+            -o "${{ inputs.model_name }}" \
+            "${{ inputs.model_url }}"
 
-    - name: Download model
-      run: |
-        aria2c -x 16 -s 16 -k 1M \
-        -o model.safetensors \
-        "MODEL_URL"
-        
-        echo "Downloaded size:"
-        ls -lh model.safetensors
+      - name: Split model into parts
+        run: |
+          mkdir -p parts
+          split -b "${{ inputs.part_size }}M" -d -a 3 "${{ inputs.model_name }}" "parts/${{ inputs.model_name }}.part-"
+          ls -lh parts/
 
-    - name: Verify download
-      run: |
-        if [ ! -s model.safetensors ]; then
-          echo "Download failed or file is empty!"
-          exit 1
-        fi
+      - name: Create release tag
+        id: tag
+        run: echo "tag=model-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
-    - name: Split model
-      run: |
-        split -b 500M model.safetensors model.part-
-        ls -lh model.part-*
-
-    - name: Create release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: model-release-${{ github.run_number }}
-        name: Model Parts
-        files: model.part-*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload split parts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: RealVisXL V4.0 split parts
+          body: |
+            Split model parts uploaded automatically.
+          files: |
+            parts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
