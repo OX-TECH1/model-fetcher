@@ -7,12 +7,18 @@ jobs:
   download:
     runs-on: ubuntu-latest
     steps:
-      - name: Download RealisticVision V6 Model
+      - name: Download RealisticVision V6 Model with curl
         run: |
-          wget https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE/resolve/main/Realistic_Vision_V6.0_B1_noVAE.safetensors -O model.safetensors
+          echo "Starting download with curl..."
+          curl -L \
+            -o Realistic_Vision_V6.0_B1_noVAE.safetensors \
+            "https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE/resolve/main/Realistic_Vision_V6.0_B1_noVAE.safetensors?download=1"
+
+          echo "Download finished"
+          ls -lh
 
       - name: Upload model as artifact
         uses: actions/upload-artifact@v4
         with:
           name: RealisticVisionV6
-          path: model.safetensors
+          path: Realistic_Vision_V6.0_B1_noVAE.safetensors
