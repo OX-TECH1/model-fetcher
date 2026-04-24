@@ -1,0 +1,18 @@
+name: Fetch RealisticVisionV6
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download RealisticVision V6 Model
+        run: |
+          wget https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE/resolve/main/Realistic_Vision_V6.0_B1_noVAE.safetensors -O model.safetensors
+
+      - name: Upload model as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: RealisticVisionV6
+          path: model.safetensors
