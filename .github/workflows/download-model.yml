@@ -1,84 +1,38 @@
-name: Build Model From Parts
+name: Rebuild Full Model From Parts
 
 on:
-  workflow_dispatch: # برای اجرای دستی
+  workflow_dispatch:
 
 jobs:
-  build_model:
+  rebuild:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. دانلود فایل‌های zip مدل از ریپوی خودت
-      #    (تو باید این فایل‌ها رو قبلاً توی یه ریپو دیگه آپلود کرده باشی)
-      #    فرض می‌کنیم ریپوی اصلی مدل همون ریپوی این workflow هست
-      #    و فایل‌های zip رو مستقیماً اینجا آپلود کردی.
-      #    اگر فایل‌ها در ریپوی دیگری هستند، باید از checkout استفاده کنی.
-
-      - name: Checkout code with parts
+      - name: Checkout repo
         uses: actions/checkout@v4
-        # اگر فایل‌ها در ریپوی دیگری هستند، این قسمت را اضافه کن:
-        # with:
-        #   repository: your-username/your-model-parts-repo # نام ریپوی خودت
-        #   token: ${{ secrets.GITHUB_TOKEN }} # یا یک PAT اگر ریپو خصوصی است
-        #   path: model_parts # پوشه مقصد برای دانلود
 
-      - name: List files to check
-        run: ls -lh
-
-      # 2. بازسازی مدل از فایل‌های zip
-      - name: Unzip and Rebuild Model
+      - name: List ZIP parts
         run: |
-          echo "Starting to unzip and rebuild..."
-          # فرض می‌کنیم نام فایل اصلی مدل 'Realistic_Vision_V6.0_B1_noVAE.safetensors' است
-          # و قطعات zip شده هم 'part_01.zip', 'part_02.zip', ... نام دارند
+          echo "Available ZIP parts:"
+          ls -lh *.zip
 
-          # ابتدا فایل هدف را ایجاد می‌کنیم (خالی)
-          touch Realistic_Vision_V6.0_B1_noVAE.safetensors
-
-          # حلقه برای باز کردن و چسباندن قطعات
-          # نام فایل‌های zip باید دقیقاً با الگوی part_XX.zip مطابقت داشته باشند
-          # فایل‌ها باید در ریشه ریپو باشند یا در پوشه‌ای که checkout کردی
-          
-          # !!! توجه: نام فایل‌های zip باید دقیقاً به ترتیب درست باشند.
-          # اگر الگوی نام‌گذاری فرق دارد، این خط باید اصلاح شود.
-          
-          for part_file in part_*.zip; do
-            echo "Unzipping $part_file..."
-            unzip -q "$part_file" # -q برای حالت ساکت (quiet)
-            
-            # فرض بر این است که unzip مستقیماً محتویات را در پوشه فعلی استخراج می‌کند
-            # و ما بعداً آن را به فایل اصلی می‌چسبانیم.
-            # اگر unzip فایل را به نامی خاص استخراج می‌کند، باید آن نام را اینجا استفاده کنید.
-            # برای سادگی، فرض می‌کنیم unzip فایل خام را با نام درست استخراج می‌کند
-            # و ما آن را به فایل اصلی می‌چسبانیم.
-            
-            # اگر unzip نام فایل اصلی را استخراج می‌کند:
-            # unzip -p "$part_file" >> Realistic_Vision_V6.0_B1_noVAE.safetensors
-            
-            # اگر unzip فایل را به نام موقت استخراج می‌کند و ما باید آن را پیدا کنیم:
-            # این روش پیچیده‌تر است و بستگی به unzip دارد.
-            # یک روش امن‌تر این است که unzip فایل را به نام خاصی استخراج کند.
-            
-            # برای اطمینان، فرض می‌کنیم unzip فایل را به نامی استخراج می‌کند که همان part_XX است
-            # و ما باید آن را به فایل اصلی بچسبانیم.
-            # (این قسمت نیازمند تست است)
-            
-            # راه حل بهتر: از unzip -p برای piping مستقیم استفاده کنیم
-            unzip -p "$part_file" >> Realistic_Vision_V6.0_B1_noVAE.safetensors
-            
-            echo "Appended content of $part_file"
+      - name: Unzip All Parts
+        run: |
+          mkdir extracted
+          for part in $(ls part_*.zip | sort); do
+            echo "Unzipping $part ..."
+            unzip -p "$part" >> extracted/model_combined.bin
           done
-          
-          echo "Rebuilding complete!"
-          ls -lh Realistic_Vision_V6.0_B1_noVAE.safetensors
 
-      - name: Check final file size
+      - name: Rename to final safetensors
         run: |
-          echo "--- Final File Size Check ---"
-          ls -lh Realistic_Vision_V6.0_B1_noVAE.safetensors
+          mv extracted/model_combined.bin Realistic_Vision_V6.safetensors
 
-      - name: Upload final model artifact
+      - name: Check final model size
+        run: ls -lh Realistic_Vision_V6.safetensors
+
+      - name: Uplo Final Model
         uses: actions/upload-artifact@v4
         with:
-          name: Realistic_Vision_V6_Full_Model
-          path: Realistic_Vision_V6.0_B1_noVAE.safetensors
+          name: RealisticVisionV6-Full
+          path: Realistic_Vision_V6.safetensors
